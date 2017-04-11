@@ -34,6 +34,7 @@ type Context struct {
 	params          Params
 	handlers        Handlers
 	curHandlerIndex int
+	userData        map[string]interface{}
 }
 
 func (c *Context) reset(req *http.Request, resp http.ResponseWriter) {
@@ -187,4 +188,23 @@ func (c *Context) Cookie(name string) (string, error) {
 
 func (c *Context) RawCookie(name string) (*http.Cookie, error) {
 	return c.req.Cookie(name)
+}
+
+// =================================
+// ======= user data ===============
+// =================================
+
+func (c *Context) UserData(key string) (data interface{}, exist bool) {
+	if c.userData != nil {
+		data, exist = c.userData[key]
+		return
+	}
+	return
+}
+
+func (c *Context) SetUserData(key string, val interface{}) {
+	if c.userData == nil {
+		c.userData = make(map[string]interface{})
+	}
+	c.userData[key] = val
 }
