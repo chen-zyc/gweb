@@ -1,7 +1,6 @@
 package gweb
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,6 +23,7 @@ type Handler func(c *Context)
 type Handlers []Handler
 
 type Server struct {
+	*RouterGroup
 	// Enables automatic redirection if the current route can't be matched but a
 	// handler for the path with (without) the trailing slash exists.
 	// For example if /foo/ is requested but a route only exists for /foo, the
@@ -87,6 +87,7 @@ func NewServer() *Server {
 		HandleMethodNotAllowed: true,
 		trees: make(map[string]Router, 9),
 	}
+	s.RouterGroup = NewGroup(s, "/")
 	s.ctxPool.New = func() interface{} { return &Context{} }
 	return s
 }
@@ -98,74 +99,6 @@ func (s *Server) Run(address string, opts ...Option) error {
 
 	err := http.ListenAndServe(address, s)
 	return err
-}
-
-func (s *Server) Global(handlers ...Handler) {
-	s.globalHandlers = append(s.globalHandlers, handlers...)
-}
-
-func (s *Server) Handle(method, path string, handlers ...Handler) {
-	assert(path[0] == '/', fmt.Sprintf("path must begin with '/' in path '%s'", path))
-	assert(method != "", fmt.Sprintf("HTTP method can not be empty in path '%s'", path))
-	assert(len(handlers) > 0, "there must be at least one handler")
-
-	router := s.trees[method]
-	if router == nil {
-		router = NewRouter()
-		s.trees[method] = router
-	}
-	handlers = s.combineHandlers(handlers...) // + global handlers
-	router.Add(path, handlers)
-}
-
-func (s *Server) GET(path string, handlers ...Handler) {
-	s.Handle(MethodGet, path, handlers...)
-}
-
-func (s *Server) POST(path string, handlers ...Handler) {
-	s.Handle(MethodPost, path, handlers...)
-}
-
-func (s *Server) PUT(path string, handlers ...Handler) {
-	s.Handle(MethodPut, path, handlers...)
-}
-
-func (s *Server) DELETE(path string, handlers ...Handler) {
-	s.Handle(MethodDelete, path, handlers...)
-}
-
-func (s *Server) PATCH(path string, handlers ...Handler) {
-	s.Handle(MethodPatch, path, handlers...)
-}
-
-func (s *Server) OPTIONS(path string, handlers ...Handler) {
-	s.Handle(MethodOptions, path, handlers...)
-}
-
-func (s *Server) HEAD(path string, handlers ...Handler) {
-	s.Handle(MethodHead, path, handlers...)
-}
-
-func (s *Server) CONNECT(path string, handlers ...Handler) {
-	s.Handle(MethodConnect, path, handlers...)
-}
-
-func (s *Server) TRACE(path string, handlers ...Handler) {
-	s.Handle(MethodTrace, path, handlers...)
-}
-
-func (s *Server) HandleMethods(methods, path string, handlers ...Handler) {
-	for _, method := range strings.Split(methods, ",") {
-		s.Handle(strings.TrimSpace(method), path, handlers...)
-	}
-}
-
-func (s *Server) Any(path string, handlers ...Handler) {
-	allMethods := []string{
-		MethodGet, MethodPost, MethodHead, MethodOptions, MethodPut,
-		MethodDelete, MethodTrace, MethodConnect, MethodPatch,
-	}
-	s.HandleMethods(strings.Join(allMethods, ","), path, handlers...)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -295,18 +228,7 @@ func (s *Server) notFound(ctx *Context) {
 	s.NotFound(ctx)
 }
 
-func (s *Server) combineHandlers(handlers ...Handler) Handlers {
-	if len(s.globalHandlers) == 0 {
-		return handlers
-	}
-	numHandlers := len(s.globalHandlers) + len(handlers)
-	mergedHandlers := make([]Handler, numHandlers)
-	copy(mergedHandlers, s.globalHandlers)
-	copy(mergedHandlers[len(s.globalHandlers):], handlers)
-	return mergedHandlers
-}
-
-func assert(guard bool, errMsg string) {
+func Assert(guard bool, errMsg string) {
 	if !guard {
 		panic(errMsg)
 	}

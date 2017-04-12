@@ -150,15 +150,18 @@ func (c *Context) Render(r render.Render) {
 	}
 }
 
-func (c *Context) String(format string, args ...interface{}) {
+func (c *Context) String(code int, format string, args ...interface{}) {
+	c.Status(code)
 	c.Render(render.StringRender(format, args...))
 }
 
-func (c *Context) JSON(obj interface{}) {
+func (c *Context) JSON(code int, obj interface{}) {
+	c.Status(code)
 	c.Render(render.JSONRender(obj))
 }
 
-func (c *Context) XML(obj interface{}) {
+func (c *Context) XML(code int, obj interface{}) {
+	c.Status(code)
 	c.Render(render.XMLRender(obj))
 }
 
