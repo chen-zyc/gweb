@@ -165,6 +165,10 @@ func (c *Context) XML(code int, obj interface{}) {
 	c.Render(render.XMLRender(obj))
 }
 
+func (c *Context) File(filePath string) {
+	http.ServeFile(c.resp, c.req, filePath)
+}
+
 func (c *Context) SetCookie(name, value string, maxAge int, path, domain string, secure, httpOnly bool) {
 	if path == "" {
 		path = "/"

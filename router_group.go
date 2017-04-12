@@ -2,6 +2,8 @@ package gweb
 
 import (
 	"fmt"
+	"net/http"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -84,8 +86,8 @@ func (g *RouterGroup) TRACE(path string, handlers ...Handler) {
 	g.Handle(MethodTrace, path, handlers...)
 }
 
-func (g *RouterGroup) HandleMethods(methods, path string, handlers ...Handler) {
-	for _, method := range strings.Split(methods, ",") {
+func (g *RouterGroup) HandleMethods(methods []string, path string, handlers ...Handler) {
+	for _, method := range methods {
 		g.Handle(strings.TrimSpace(method), path, handlers...)
 	}
 }
@@ -95,7 +97,45 @@ func (g *RouterGroup) Any(path string, handlers ...Handler) {
 		MethodGet, MethodPost, MethodHead, MethodOptions, MethodPut,
 		MethodDelete, MethodTrace, MethodConnect, MethodPatch,
 	}
-	g.HandleMethods(strings.Join(allMethods, ","), path, handlers...)
+	g.HandleMethods(allMethods, path, handlers...)
+}
+
+func (g *RouterGroup) StaticFile(path, filePath string) {
+	if strings.ContainsAny(path, ":*") {
+		panic("URL parameters can not be used when serving a static file")
+	}
+
+	g.HandleMethods([]string{MethodGet, MethodHead}, path, func(c *Context) {
+		c.File(filePath)
+	})
+}
+
+func (g *RouterGroup) StaticFS(relativePath string, fs http.FileSystem) {
+	if strings.ContainsAny(relativePath, ":*") {
+		panic("URL parameters can not be used when serving a static file")
+	}
+	absolutePath := joinPaths(g.basePath, relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+
+	var handler Handler
+	if _, ok := fs.(*OnlyFilesFS); ok {
+		handler = func(c *Context) {
+			c.resp.WriteHeader(http.StatusNotFound)
+			fileServer.ServeHTTP(c.resp, c.req)
+		}
+	} else {
+		handler = func(c *Context) {
+			fileServer.ServeHTTP(c.resp, c.req)
+		}
+	}
+
+	urlPath := path.Join(relativePath, "/*filepath")
+	g.HandleMethods([]string{MethodGet, MethodHead}, urlPath, handler)
+}
+
+func (g *RouterGroup) StaticDir(relativePath, root string) {
+	fs := &OnlyFilesFS{http.Dir(root)}
+	g.StaticFS(relativePath, fs)
 }
 
 func (g *RouterGroup) combineHandlers(handlers ...Handler) Handlers {
