@@ -1,8 +1,11 @@
 package gweb
 
 import (
+	"fmt"
 	"html/template"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 )
@@ -73,9 +76,16 @@ type Server struct {
 	// unrecovered panics.
 	PanicHandler func(ctx *Context, err interface{})
 
-	trees        map[string]Router
-	ctxPool      sync.Pool
+	PrintLogo bool
+	Logo      string
+
 	htmlTemplate *template.Template
+
+	name    string
+	address string
+
+	trees   map[string]Router
+	ctxPool sync.Pool
 }
 
 var _ http.Handler = (*Server)(nil)
@@ -86,7 +96,8 @@ func NewServer() *Server {
 		RedirectFixedPath:      true,
 		HandleOPTIONS:          true,
 		HandleMethodNotAllowed: true,
-		trees: make(map[string]Router, 9),
+		PrintLogo:              true,
+		trees:                  make(map[string]Router, 9),
 	}
 	s.RouterGroup = NewGroup(s, "/")
 	s.ctxPool.New = func() interface{} { return &Context{} }
@@ -97,6 +108,10 @@ func (s *Server) Run(address string, opts ...Option) error {
 	for _, opt := range opts {
 		opt(s)
 	}
+	s.address = address
+
+	s.printLogo(os.Stdout)
+	s.printInfo(os.Stdout)
 
 	err := http.ListenAndServe(address, s)
 	return err
@@ -240,6 +255,21 @@ func (s *Server) notFound(ctx *Context) {
 		}
 	}
 	s.NotFound(ctx)
+}
+
+func (s *Server) printLogo(w io.Writer) {
+	if !s.PrintLogo {
+		return
+	}
+	if s.Logo != "" {
+		fmt.Fprint(w, s.Logo)
+	} else {
+		fmt.Fprint(w, Logo)
+	}
+}
+
+func (s *Server) printInfo(w io.Writer) {
+	fmt.Fprintf(w, serverInfoTpl, s.name, s.address)
 }
 
 func Assert(guard bool, errMsg string) {

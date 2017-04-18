@@ -44,7 +44,10 @@ func main() {
 		})
 	}
 
-	s.Run(":8080", gweb.PanicHandlerOption(panicHandler))
+	s.Run(":8080",
+		gweb.NameOption("test"),
+		gweb.PanicHandlerOption(panicHandler),
+	)
 }
 
 func panicHandler(c *gweb.Context, err interface{}) {

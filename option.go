@@ -1,5 +1,7 @@
 package gweb
 
+import "bytes"
+
 type Option func(s *Server)
 
 func RedirectTrailingSlashOption(redirectTrailingSlash bool) Option {
@@ -41,5 +43,27 @@ func NotFoundOption(handler Handler) Option {
 func PanicHandlerOption(handler func(ctx *Context, err interface{})) Option {
 	return func(s *Server) {
 		s.PanicHandler = handler
+	}
+}
+
+func LogoOption(printLogo bool, logo ...string) Option {
+	buf := bytes.Buffer{}
+	for _, s := range logo {
+		buf.WriteString(s)
+		buf.WriteByte('\n')
+	}
+	return func(s *Server) {
+		s.PrintLogo = printLogo
+		if !printLogo {
+			s.Logo = ""
+		} else {
+			s.Logo = buf.String()
+		}
+	}
+}
+
+func NameOption(name string) Option {
+	return func(s *Server) {
+		s.name = name
 	}
 }
