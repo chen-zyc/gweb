@@ -29,6 +29,7 @@ func (ps Params) ByName(name string) string {
 }
 
 type Context struct {
+	s               *Server
 	req             *http.Request
 	resp            http.ResponseWriter
 	params          Params
@@ -163,6 +164,11 @@ func (c *Context) JSON(code int, obj interface{}) {
 func (c *Context) XML(code int, obj interface{}) {
 	c.Status(code)
 	c.Render(render.XMLRender(obj))
+}
+
+func (c *Context) HTML(code int, name string, data interface{}) {
+	c.Status(code)
+	c.Render(render.HTMLRender(c.s.htmlTemplate, name, data))
 }
 
 func (c *Context) File(filePath string) {

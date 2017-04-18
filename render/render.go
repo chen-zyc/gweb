@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 )
@@ -41,6 +42,16 @@ func XMLRender(obj interface{}) Render {
 	return RenderFunc(func(w http.ResponseWriter) error {
 		writeContentType(w, "application/xml; charset=utf-8")
 		return xml.NewEncoder(w).Encode(obj)
+	})
+}
+
+func HTMLRender(t *template.Template, name string, data interface{}) Render {
+	return RenderFunc(func(w http.ResponseWriter) error {
+		writeContentType(w, "text/html; charset=utf-8")
+		if name == "" {
+			return t.Execute(w, data)
+		}
+		return t.ExecuteTemplate(w, name, data)
 	})
 }
 

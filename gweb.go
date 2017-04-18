@@ -1,6 +1,7 @@
 package gweb
 
 import (
+	"html/template"
 	"net/http"
 	"strings"
 	"sync"
@@ -72,9 +73,9 @@ type Server struct {
 	// unrecovered panics.
 	PanicHandler func(ctx *Context, err interface{})
 
-	trees          map[string]Router
-	ctxPool        sync.Pool
-	globalHandlers Handlers
+	trees        map[string]Router
+	ctxPool      sync.Pool
+	htmlTemplate *template.Template
 }
 
 var _ http.Handler = (*Server)(nil)
@@ -101,6 +102,18 @@ func (s *Server) Run(address string, opts ...Option) error {
 	return err
 }
 
+func (s *Server) SetHTMLTemplate(t *template.Template) {
+	s.htmlTemplate = t
+}
+
+func (s *Server) LoadHTMLFiles(files ...string) {
+	s.SetHTMLTemplate(template.Must(template.ParseFiles(files...)))
+}
+
+func (s *Server) LoadHTMLGlob(pattern string) {
+	s.SetHTMLTemplate(template.Must(template.ParseGlob(pattern)))
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := s.getContext()
 	ctx.reset(req, w)
@@ -123,6 +136,7 @@ func (s *Server) handleRequest(ctx *Context) {
 	if router := s.trees[method]; router != nil {
 		handlers, params, tsr := router.Find(path)
 		if handlers != nil {
+			ctx.s = s
 			ctx.params = params
 			ctx.handlers = handlers
 			ctx.Next()
